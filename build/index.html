@@ -1,50 +1,1391 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<style>
-			body{
-				background-color:#2c3e50;
-			}
-			#canvas{
-				display: block;
-				margin-left: auto;
-				margin-right: auto;
-				box-shadow: 0px 0px 10px 2px #7f8c8d;
-			}
-			#instructions{
-				width: 512px;
-				display: block;
-				margin-left: auto;
-				margin-right: auto;
-				color:#ecf0f1;
-				font-size:19px;
-				font-family:calibri;
-			}
-			#credits{
-				width: 512px;
-				display: block;
-				margin-left: auto;
-				margin-right: auto;
-				color:#ecf0f1;
-				font-size:14px;
-				font-family:calibri;
-			}
-			a{
-				color:#ecf0f1;
-			}
-		</style>
-		<script src='assets/scripts/class.js'></script>
-		<script src='assets/scripts/jsfxr.js'></script>
-		<script src='assets/scripts/reversed_gravity_ninja.js'></script>
-	</head>
-	<body>
-		<canvas id='canvas'></canvas>
-		<p id='instructions'>
-			<strong>CONTROLS:</strong><br>
-			A or D to move. W or S to change gravity.
-		</p>
-		<p id='credits'>
-			Reverse Gravity Ninja. Created by <a href='http://www.marcguinea.com'>Marc Guinea</a> for js13kgames 2015. <br>Inspired by Gravity Duck
-		</p>
-	</body>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>18:00 — Das digitale Duell</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-panel: rgba(10, 20, 34, 0.9);
+      --line: #35506b;
+      --text: #e7f3ff;
+      --muted: #95a9bc;
+      --ice: #8fe7ff;
+      --ice-deep: #3ea6cc;
+      --fire: #ffbd73;
+      --fire-deep: #ff6b4a;
+      --accent: #f7f0b2;
+      --shadow: 0 0 0 2px rgba(173, 220, 255, 0.08), 0 0 30px rgba(0, 0, 0, 0.25);
+      --pixel: 0 0 0 2px rgba(255,255,255,0.04);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Courier New", Courier, monospace;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(49, 89, 140, 0.25), transparent 30%),
+        linear-gradient(180deg, #09111c 0%, #07111f 35%, #0d1220 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255,255,255,0.025) 50%, transparent 50%),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 50%, transparent 50%);
+      background-size: 100% 4px, 4px 100%;
+      pointer-events: none;
+      opacity: 0.3;
+      mix-blend-mode: screen;
+    }
+
+    a { color: inherit; }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    .hero, .panel {
+      background: var(--bg-panel);
+      border: 2px solid var(--line);
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .hero::after, .panel::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(255,255,255,0.06);
+      pointer-events: none;
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 22px;
+      overflow: hidden;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 1;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      text-shadow: 0 0 12px rgba(255,255,255,0.12);
+    }
+
+    .hero-grid,
+    .content-grid,
+    .duel-layout,
+    .stats-grid,
+    .archive-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-grid {
+      grid-template-columns: 1.3fr 0.9fr;
+      align-items: end;
+    }
+
+    .lead {
+      max-width: 62ch;
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+
+    .ritual-points {
+      display: grid;
+      gap: 10px;
+      margin-top: 20px;
+      color: var(--muted);
+    }
+
+    .ritual-points span::before {
+      content: "▸ ";
+      color: var(--accent);
+    }
+
+    .countdown-card {
+      background: rgba(255,255,255,0.03);
+      border: 2px solid rgba(255,255,255,0.08);
+      padding: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .countdown-value {
+      font-size: clamp(1.6rem, 5vw, 3rem);
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .status-line {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .content-grid {
+      grid-template-columns: 1.5fr 0.85fr;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .section-title h2 {
+      font-size: 1.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .section-title span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .duel-layout {
+      grid-template-rows: auto auto;
+    }
+
+    .arena {
+      position: relative;
+      min-height: 350px;
+      padding: 22px;
+      border: 2px solid rgba(255,255,255,0.06);
+      background:
+        linear-gradient(180deg, rgba(24, 45, 69, 0.5), rgba(9, 16, 30, 0.95)),
+        linear-gradient(90deg, rgba(143, 231, 255, 0.08), rgba(255, 107, 74, 0.08));
+      overflow: hidden;
+    }
+
+    .arena::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 64px;
+      height: 2px;
+      background: rgba(255,255,255,0.12);
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
+    }
+
+    .skyline {
+      position: absolute;
+      inset: auto 0 0;
+      height: 100px;
+      background:
+        linear-gradient(180deg, transparent, rgba(0,0,0,0.18)),
+        repeating-linear-gradient(90deg, transparent 0 30px, rgba(255,255,255,0.04) 30px 34px);
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .fighters {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      min-height: 240px;
+      gap: 16px;
+      z-index: 1;
+    }
+
+    .fighter {
+      width: min(42%, 280px);
+      text-align: center;
+      transition: transform 200ms ease, filter 200ms ease, opacity 200ms ease;
+    }
+
+    .fighter.active {
+      transform: translateY(-8px) scale(1.02);
+      filter: drop-shadow(0 0 16px rgba(255,255,255,0.18));
+    }
+
+    .fighter.hit {
+      animation: shake 360ms steps(2, end);
+    }
+
+    .fighter.defeated {
+      opacity: 0.45;
+      transform: translateY(6px) scale(0.98);
+      filter: grayscale(0.45);
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+
+    .sprite {
+      width: 220px;
+      height: 220px;
+      margin: 0 auto 10px;
+      position: relative;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 12px rgba(0,0,0,0.35));
+    }
+
+    .kaiju-sprite * {
+      position: absolute;
+      box-sizing: border-box;
+    }
+
+    .monster-aura {
+      inset: 12px;
+      border-radius: 50%;
+      filter: blur(18px);
+      opacity: 0.55;
+    }
+
+    .frost-monster .monster-aura {
+      background: radial-gradient(circle, rgba(173, 240, 255, 0.55), transparent 65%);
+    }
+
+    .fire-monster .monster-aura {
+      background: radial-gradient(circle, rgba(255, 122, 67, 0.52), transparent 62%);
+    }
+
+    .body,
+    .head,
+    .leg,
+    .arm {
+      overflow: hidden;
+    }
+
+    .frost-monster .body,
+    .frost-monster .head,
+    .frost-monster .leg,
+    .frost-monster .arm {
+      background:
+        radial-gradient(circle at 25% 25%, rgba(255,255,255,0.95), rgba(255,255,255,0.2) 10%, transparent 11%) 0 0 / 20px 20px,
+        radial-gradient(circle at 70% 65%, rgba(210,242,250,0.9), rgba(115,180,205,0.45) 48%, rgba(91,149,175,0.15) 70%),
+        #d9f7ff;
+      border: 3px solid #8dc6d8;
+      box-shadow: inset 0 -8px 0 rgba(81, 149, 175, 0.2);
+    }
+
+    .fire-monster .body,
+    .fire-monster .head,
+    .fire-monster .leg,
+    .fire-monster .arm {
+      background:
+        repeating-linear-gradient(78deg, #1d120d 0 8px, #332019 8px 16px, #20140f 16px 23px),
+        linear-gradient(180deg, #3a251d, #160c08);
+      border: 3px solid #5b392d;
+      box-shadow: inset 0 -10px 0 rgba(0,0,0,0.22);
+    }
+
+    .body.lower {
+      width: 108px;
+      height: 96px;
+      left: 56px;
+      top: 102px;
+      border-radius: 44% 44% 38% 38%;
+      z-index: 3;
+    }
+
+    .body.upper {
+      width: 92px;
+      height: 82px;
+      left: 64px;
+      top: 66px;
+      border-radius: 44% 44% 40% 40%;
+      z-index: 4;
+    }
+
+    .head {
+      width: 88px;
+      height: 72px;
+      left: 66px;
+      top: 24px;
+      border-radius: 48% 48% 42% 42%;
+      z-index: 7;
+    }
+
+    .frost-monster .head {
+      height: 76px;
+      border-radius: 48% 48% 45% 45%;
+    }
+
+    .legs .leg {
+      width: 42px;
+      height: 64px;
+      top: 150px;
+      border-radius: 30px 30px 18px 18px;
+      z-index: 2;
+    }
+
+    .legs .leg.left { left: 62px; transform: rotate(7deg); }
+    .legs .leg.right { left: 118px; transform: rotate(-6deg); }
+
+    .frost-monster .legs .leg::after,
+    .fire-monster .legs .leg::after {
+      content: "";
+      position: absolute;
+      left: -6px;
+      right: -6px;
+      bottom: -2px;
+      height: 22px;
+    }
+
+    .frost-monster .legs .leg::after {
+      background: #4fb0d0;
+      clip-path: polygon(0 100%, 12% 40%, 28% 100%, 43% 34%, 60% 100%, 76% 42%, 92% 100%, 100% 72%, 100% 100%);
+    }
+
+    .fire-monster .legs .leg::after {
+      background: linear-gradient(180deg, rgba(255,120,55,0.95), rgba(110,20,8,0.4));
+      clip-path: polygon(0 100%, 8% 58%, 20% 92%, 35% 36%, 54% 100%, 70% 40%, 84% 100%, 100% 64%, 100% 100%);
+      filter: drop-shadow(0 0 6px rgba(255,116,49,0.6));
+    }
+
+    .arm {
+      width: 38px;
+      height: 86px;
+      top: 88px;
+      z-index: 5;
+      border-radius: 24px;
+      transform-origin: top center;
+    }
+
+    .arm.left { left: 30px; transform: rotate(28deg); }
+    .arm.right { right: 30px; transform: rotate(-28deg); }
+
+    .frost-monster .arm.left { left: 34px; top: 84px; }
+    .frost-monster .arm.right { right: 34px; top: 84px; }
+
+    .claw {
+      position: absolute;
+      left: -10px;
+      right: -10px;
+      bottom: -10px;
+      height: 34px;
+    }
+
+    .frost-monster .claw {
+      background: #4fb0d0;
+      clip-path: polygon(0 100%, 14% 48%, 30% 100%, 50% 34%, 70% 100%, 88% 50%, 100% 100%);
+      filter: drop-shadow(0 0 4px rgba(143, 231, 255, 0.5));
+    }
+
+    .fire-monster .claw {
+      background: linear-gradient(180deg, #2a1711, #120906);
+      clip-path: polygon(0 100%, 16% 42%, 32% 92%, 52% 28%, 68% 96%, 86% 38%, 100% 100%);
+    }
+
+    .buttons {
+      left: 98px;
+      top: 70px;
+      width: 24px;
+      z-index: 6;
+      display: grid;
+      gap: 14px;
+    }
+
+    .buttons span {
+      position: relative;
+      display: block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #86e2ff, #247597);
+      border: 2px solid rgba(255,255,255,0.45);
+      box-shadow: 0 0 10px rgba(143, 231, 255, 0.35);
+    }
+
+    .belly-ring {
+      left: 68px;
+      width: 84px;
+      height: 12px;
+      border: 3px solid #7fbdcc;
+      border-left: 0;
+      border-right: 0;
+      border-radius: 50%;
+      z-index: 5;
+      opacity: 0.9;
+    }
+
+    .ring-top { top: 128px; }
+    .ring-bottom { top: 170px; }
+
+    .spikes.back-spikes {
+      left: 18px;
+      top: 74px;
+      width: 48px;
+      height: 88px;
+      background: linear-gradient(180deg, #8de6f9, #2d88a7);
+      clip-path: polygon(0 100%, 8% 60%, 18% 100%, 30% 22%, 42% 100%, 57% 12%, 66% 100%, 82% 28%, 92% 100%, 100% 74%, 100% 100%);
+      transform: rotate(-8deg);
+      z-index: 1;
+      filter: drop-shadow(0 0 6px rgba(143, 231, 255, 0.45));
+    }
+
+    .frost-monster .head .brow {
+      left: 10px;
+      right: 10px;
+      top: 12px;
+      height: 14px;
+      background: linear-gradient(180deg, rgba(120,180,198,0.95), rgba(80,135,160,0));
+      clip-path: polygon(0 86%, 14% 42%, 35% 14%, 50% 0, 65% 14%, 86% 42%, 100% 86%, 100% 100%, 0 100%);
+      z-index: 2;
+    }
+
+    .eyes {
+      top: 22px;
+      left: 12px;
+      right: 12px;
+      height: 18px;
+      z-index: 3;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .eyes span {
+      position: relative;
+      display: block;
+      width: 24px;
+      height: 18px;
+      background: radial-gradient(circle at 35% 45%, #ffed8d 0 10%, #ff7b29 38%, #d41d0d 82%);
+      border-radius: 50% 44% 58% 42%;
+      border: 2px solid #2b0f08;
+      box-shadow: 0 0 10px rgba(255, 111, 57, 0.65);
+      transform: skewX(-10deg);
+    }
+
+    .eyes span:last-child { transform: scaleX(-1) skewX(-10deg); }
+
+    .mouth {
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      height: 24px;
+      background: linear-gradient(180deg, #2c150f, #0e0705);
+      border-radius: 30px 30px 18px 18px;
+      border: 3px solid rgba(0,0,0,0.55);
+      z-index: 2;
+    }
+
+    .fire-monster .mouth {
+      background: linear-gradient(180deg, #ffb144, #ff5a1e 40%, #290b04 100%);
+      box-shadow: 0 0 14px rgba(255, 89, 30, 0.55);
+    }
+
+    .teeth {
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      height: 18px;
+      background: #f7d17c;
+      clip-path: polygon(0 0, 6% 100%, 12% 0, 18% 100%, 26% 0, 34% 100%, 42% 0, 50% 100%, 58% 0, 66% 100%, 74% 0, 82% 100%, 90% 0, 96% 100%, 100% 0, 100% 100%, 0 100%);
+      z-index: 4;
+    }
+
+    .crest {
+      left: 31px;
+      top: -8px;
+      width: 26px;
+      height: 20px;
+      background: radial-gradient(circle at 50% 40%, #8ee8ff, #267894);
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.4);
+      z-index: 1;
+    }
+
+    .fire-monster .head {
+      background:
+        repeating-linear-gradient(70deg, #1b120d 0 7px, #2d1c15 7px 14px, #140c08 14px 20px),
+        linear-gradient(180deg, #442920, #120907);
+      clip-path: polygon(8% 18%, 26% 0, 42% 10%, 57% 1%, 74% 13%, 90% 8%, 100% 32%, 95% 82%, 80% 100%, 18% 100%, 0 86%, 0 36%);
+    }
+
+    .fire-monster .head .brow {
+      left: 8px;
+      right: 8px;
+      top: 10px;
+      height: 16px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.6), transparent);
+      clip-path: polygon(0 100%, 10% 44%, 30% 8%, 50% 0, 70% 8%, 90% 44%, 100% 100%);
+      z-index: 2;
+    }
+
+    .chest-rift {
+      left: 82px;
+      top: 98px;
+      width: 54px;
+      height: 34px;
+      background: radial-gradient(circle at 50% 40%, #ffc84f, #ff6c2a 55%, #3b1208 75%);
+      clip-path: polygon(16% 0, 52% 12%, 86% 0, 100% 38%, 78% 100%, 24% 100%, 0 40%);
+      filter: drop-shadow(0 0 10px rgba(255, 109, 41, 0.6));
+      z-index: 6;
+    }
+
+    .back-flames {
+      right: 8px;
+      top: 34px;
+      width: 54px;
+      height: 124px;
+      background: linear-gradient(180deg, rgba(255,225,125,0.95), rgba(255,109,41,0.95) 45%, rgba(120,15,5,0.15) 100%);
+      clip-path: polygon(28% 100%, 18% 82%, 30% 66%, 12% 48%, 28% 34%, 18% 14%, 42% 0, 52% 24%, 74% 6%, 66% 34%, 92% 24%, 84% 54%, 100% 78%, 70% 100%);
+      filter: drop-shadow(0 0 12px rgba(255, 106, 41, 0.7));
+      z-index: 1;
+      opacity: 0.95;
+    }
+
+    .flame-crown {
+      left: 86px;
+      top: -2px;
+      width: 56px;
+      height: 42px;
+      background: linear-gradient(180deg, #ffe07a, #ff6d2d 50%, transparent 100%);
+      clip-path: polygon(16% 100%, 8% 68%, 18% 46%, 10% 22%, 30% 0, 46% 34%, 60% 6%, 72% 34%, 92% 14%, 82% 46%, 92% 72%, 76% 100%);
+      filter: drop-shadow(0 0 8px rgba(255, 120, 50, 0.8));
+      z-index: 8;
+    }
+    .fighter-name {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .hp-wrap {
+      border: 2px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      padding: 4px;
+      margin-bottom: 6px;
+    }
+
+    .hp-bar {
+      height: 16px;
+      width: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hp-bar > span {
+      display: block;
+      height: 100%;
+      width: 100%;
+      transition: width 420ms ease;
+    }
+
+    .fighter.frost .hp-bar > span {
+      background: linear-gradient(90deg, var(--ice), var(--ice-deep));
+    }
+
+    .fighter.fire .hp-bar > span {
+      background: linear-gradient(90deg, var(--fire), var(--fire-deep));
+    }
+
+    .hp-label {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .versus {
+      position: absolute;
+      left: 50%;
+      bottom: 118px;
+      transform: translateX(-50%);
+      padding: 6px 12px;
+      background: rgba(0,0,0,0.55);
+      border: 2px solid rgba(255,255,255,0.12);
+      color: var(--accent);
+      z-index: 2;
+    }
+
+    .turn-banner {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: 2px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      min-height: 52px;
+      color: var(--accent);
+      line-height: 1.4;
+    }
+
+    .battle-log {
+      border: 2px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.22);
+      padding: 12px;
+      height: 260px;
+      overflow: auto;
+      display: grid;
+      gap: 10px;
+    }
+
+    .log-entry {
+      padding-bottom: 10px;
+      border-bottom: 1px dashed rgba(255,255,255,0.08);
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .log-entry strong { color: var(--text); }
+
+    .vote-panel,
+    .concept-panel,
+    .archive-panel {
+      display: grid;
+      gap: 16px;
+    }
+
+    .vote-buttons {
+      display: grid;
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: 2px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 12px 14px;
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.07);
+    }
+
+    button.selected-ice { border-color: var(--ice); background: rgba(143, 231, 255, 0.08); }
+    button.selected-fire { border-color: var(--fire); background: rgba(255, 189, 115, 0.08); }
+
+    .vote-bar {
+      height: 20px;
+      display: flex;
+      border: 2px solid rgba(255,255,255,0.12);
+      overflow: hidden;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .vote-ice,
+    .vote-fire {
+      transition: width 500ms ease;
+    }
+
+    .vote-ice { background: linear-gradient(90deg, var(--ice), var(--ice-deep)); }
+    .vote-fire { background: linear-gradient(90deg, var(--fire), var(--fire-deep)); }
+
+    .vote-meta,
+    .small-copy,
+    .archive-note {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.92rem;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .stat-box {
+      padding: 16px;
+      border: 2px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .stat-box strong {
+      display: block;
+      font-size: 2rem;
+      margin-top: 6px;
+      color: var(--accent);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 8px;
+    }
+
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 74px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .winner-pill {
+      display: inline-flex;
+      justify-content: center;
+      padding: 5px 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      text-transform: uppercase;
+      font-size: 0.82rem;
+    }
+
+    .winner-pill.frost { color: var(--ice); }
+    .winner-pill.fire { color: var(--fire); }
+
+    .sparkline {
+      height: 12px;
+      display: flex;
+      gap: 3px;
+      align-items: end;
+    }
+
+    .sparkline span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      opacity: 0.85;
+    }
+
+    .archive-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .day-card {
+      padding: 14px;
+      border: 2px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      display: grid;
+      gap: 8px;
+    }
+
+    .day-card .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .legend span::before {
+      content: "■";
+      margin-right: 6px;
+    }
+
+    .legend .ice::before { color: var(--ice); }
+    .legend .fire::before { color: var(--fire); }
+    .legend .crowd::before { color: var(--accent); }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 18px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 920px) {
+      .hero-grid,
+      .content-grid,
+      .archive-grid,
+      .stats-grid { grid-template-columns: 1fr; }
+
+      .arena { min-height: 420px; }
+      .fighters { flex-direction: column; align-items: center; justify-content: center; }
+      .fighter { width: 100%; max-width: 280px; }
+      .versus { bottom: auto; top: 50%; transform: translate(-50%, -50%); }
+      .timeline-row { grid-template-columns: 90px 1fr 64px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Tägliches digitales Ritual</div>
+          <h1>18:00 — Das digitale Duell</h1>
+          <p class="lead">
+            Jeden Abend um 18:00 Uhr treffen Frost und Feuer aufeinander: nicht als simple Gegner, sondern als zwei archetypische Zustände.
+            Die Seite inszeniert dieses tägliche Aufeinandertreffen als beobachtbares Ritual — mit Countdown, Live-Kampf, kollektiver Erwartung und einem Archiv der vergangenen Abende.
+          </p>
+          <div class="ritual-points">
+            <span>Retro-inspirierte Kampfoberfläche mit reduzierter Pixel-Ästhetik.</span>
+            <span>Mehr Atmosphäre als Wettbewerb: sehen, warten, mitfiebern, erinnern.</span>
+            <span>Voting als kollektive Geste vor dem Duell, Statistik als Gedächtnis des Rituals.</span>
+          </div>
+        </div>
+        <aside class="countdown-card">
+          <div class="eyebrow">Nächster Schwellenmoment</div>
+          <div class="countdown-value" id="countdown">--:--:--</div>
+          <p class="status-line" id="statusLine">Die Arena ist still. Das Duell beginnt täglich um 18:00 Uhr.</p>
+          <p class="small-copy" id="daySummary">Heute wartet das Ritual noch auf seinen Ausgang.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <section class="panel duel-layout">
+        <div class="section-title">
+          <h2>Kampfseite</h2>
+          <span>Oben: Arena &amp; Lebensbalken · Unten: Live-Protokoll</span>
+        </div>
+
+        <div class="arena">
+          <div class="fighters">
+            <article class="fighter frost" id="fighterFrost">
+              <div class="sprite kaiju-sprite frost-monster">
+                <div class="monster-aura"></div>
+                <div class="spikes back-spikes"></div>
+                <div class="legs">
+                  <span class="leg left"></span>
+                  <span class="leg right"></span>
+                </div>
+                <div class="body lower"></div>
+                <div class="body upper"></div>
+                <div class="belly-ring ring-top"></div>
+                <div class="belly-ring ring-bottom"></div>
+                <div class="buttons">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="arm left"><span class="claw"></span></div>
+                <div class="arm right"><span class="claw"></span></div>
+                <div class="head">
+                  <div class="brow"></div>
+                  <div class="eyes"><span></span><span></span></div>
+                  <div class="crest"></div>
+                  <div class="mouth"></div>
+                  <div class="teeth"></div>
+                </div>
+              </div>
+              <div class="fighter-name">Frostwesen</div>
+              <div class="hp-wrap"><div class="hp-bar"><span id="hpFrost"></span></div></div>
+              <div class="hp-label" id="hpFrostLabel">Energie 100 / 100</div>
+            </article>
+
+            <div class="versus">VS</div>
+
+            <article class="fighter fire" id="fighterFire">
+              <div class="sprite kaiju-sprite fire-monster">
+                <div class="monster-aura"></div>
+                <div class="flame-crown"></div>
+                <div class="legs">
+                  <span class="leg left"></span>
+                  <span class="leg right"></span>
+                </div>
+                <div class="body lower"></div>
+                <div class="body upper"></div>
+                <div class="chest-rift"></div>
+                <div class="arm left"><span class="claw"></span></div>
+                <div class="arm right"><span class="claw"></span></div>
+                <div class="head">
+                  <div class="brow"></div>
+                  <div class="eyes"><span></span><span></span></div>
+                  <div class="mouth"></div>
+                  <div class="teeth"></div>
+                </div>
+                <div class="back-flames"></div>
+              </div>
+              <div class="fighter-name">Feuerkreatur</div>
+              <div class="hp-wrap"><div class="hp-bar"><span id="hpFire"></span></div></div>
+              <div class="hp-label" id="hpFireLabel">Energie 100 / 100</div>
+            </article>
+          </div>
+          <div class="skyline"></div>
+        </div>
+
+        <div class="turn-banner" id="turnBanner">Die Arena lädt sich auf. Noch ist kein Schlag gefallen.</div>
+
+        <div>
+          <div class="section-title" style="margin-top: 18px;">
+            <h2>Kampflog</h2>
+            <span>Rundenbasiert · verzögert · täglich neu</span>
+          </div>
+          <div class="battle-log" id="battleLog"></div>
+        </div>
+      </section>
+
+      <aside class="panel vote-panel">
+        <div class="section-title">
+          <h2>Voting</h2>
+          <span>Vorahnung der Community</span>
+        </div>
+
+        <p class="small-copy">
+          Vor dem Duell können Besucher:innen eine Seite wählen. Das Voting verändert nicht den Ausgang — es verdichtet nur die gemeinsame Erwartung.
+        </p>
+
+        <div class="vote-buttons">
+          <button id="voteFrost">Auf Frost setzen</button>
+          <button id="voteFire">Auf Feuer setzen</button>
+        </div>
+
+        <div class="vote-bar" aria-label="Aktuelle Abstimmung">
+          <div class="vote-ice" id="voteIceBar" style="width: 50%"></div>
+          <div class="vote-fire" id="voteFireBar" style="width: 50%"></div>
+        </div>
+
+        <div class="vote-meta" id="voteMeta">Frost 50% · Feuer 50% · simulierte Gemeinschaftsstimmen + lokale Stimme</div>
+        <div class="small-copy" id="majorityMeta">Nach dem Kampf wird sichtbar, ob die Mehrheit richtig lag.</div>
+
+        <div class="section-title" style="margin-top: 8px;">
+          <h2>Gestalterische Richtung</h2>
+        </div>
+        <div class="concept-panel">
+          <p class="small-copy">
+            <strong>Stimmung:</strong> nächtlich, rituell, konzentriert; wie ein digitaler Schrein zwischen Arcade, Wetterbeobachtung und Orakel.
+          </p>
+          <p class="small-copy">
+            <strong>Visuelle Sprache:</strong> klare Panels, Scanlines, limitierte Farbpalette, harte Rahmen, ikonische Figuren statt realistischer Monster.
+          </p>
+          <p class="small-copy">
+            <strong>Interaktion:</strong> Beobachten vor Handeln; die Nutzer:innen stimmen ab, bleiben aber Zuschauer:innen des eigentlichen Ereignisses.
+          </p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="panel" style="margin-top: 22px;">
+      <div class="section-title">
+        <h2>Statistik &amp; Archiv</h2>
+        <span>Das Gedächtnis des Rituals</span>
+      </div>
+
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div class="section-title" style="margin-top: 18px;">
+        <h2>Verlauf</h2>
+        <span>Letzte 7 Abende</span>
+      </div>
+      <div class="timeline" id="timeline"></div>
+
+      <div class="section-title" style="margin-top: 18px;">
+        <h2>Archivansicht</h2>
+        <span>Tageskarten mit Sieger, Voting-Tendenz und Erinnerungsnotiz</span>
+      </div>
+      <div class="legend">
+        <span class="ice">Frost gewann</span>
+        <span class="fire">Feuer gewann</span>
+        <span class="crowd">Mehrheit der Community</span>
+      </div>
+      <div class="archive-grid" id="archiveGrid"></div>
+      <p class="footer-note">
+        Dieses Mockup transportiert das Konzept bereits funktional: täglicher Start um 18:00 Uhr, verzögerter Live-Kampf, Voting, Statistik und Archiv.
+        Für eine produktive Version wären ein Server-Scheduler, persistente Votes und ein echtes zentrales Tagesprotokoll der nächste Schritt.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const MAX_HP = 100;
+    const BATTLE_DURATION_MS = 4 * 60 * 1000;
+    const STORAGE_PREFIX = 'digital-duel';
+
+    const el = {
+      countdown: document.getElementById('countdown'),
+      statusLine: document.getElementById('statusLine'),
+      daySummary: document.getElementById('daySummary'),
+      battleLog: document.getElementById('battleLog'),
+      turnBanner: document.getElementById('turnBanner'),
+      hpFrost: document.getElementById('hpFrost'),
+      hpFire: document.getElementById('hpFire'),
+      hpFrostLabel: document.getElementById('hpFrostLabel'),
+      hpFireLabel: document.getElementById('hpFireLabel'),
+      fighterFrost: document.getElementById('fighterFrost'),
+      fighterFire: document.getElementById('fighterFire'),
+      voteFrost: document.getElementById('voteFrost'),
+      voteFire: document.getElementById('voteFire'),
+      voteIceBar: document.getElementById('voteIceBar'),
+      voteFireBar: document.getElementById('voteFireBar'),
+      voteMeta: document.getElementById('voteMeta'),
+      majorityMeta: document.getElementById('majorityMeta'),
+      statsGrid: document.getElementById('statsGrid'),
+      timeline: document.getElementById('timeline'),
+      archiveGrid: document.getElementById('archiveGrid')
+    };
+
+    function mulberry32(seed) {
+      return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function hashString(str) {
+      let h = 1779033703;
+      for (let i = 0; i < str.length; i++) {
+        h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+        h = h << 13 | h >>> 19;
+      }
+      return (h >>> 0);
+    }
+
+    function formatDate(date) {
+      return new Intl.DateTimeFormat('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+    }
+
+    function formatShort(date) {
+      return new Intl.DateTimeFormat('de-CH', { day: '2-digit', month: 'short' }).format(date);
+    }
+
+    function startOfDay(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function getBattleStart(date) {
+      const d = new Date(date);
+      d.setHours(18, 0, 0, 0);
+      return d;
+    }
+
+    function getVoteKey(date) {
+      return `${STORAGE_PREFIX}:vote:${startOfDay(date).toISOString().slice(0,10)}`;
+    }
+
+    function getUserVote(date) {
+      return localStorage.getItem(getVoteKey(date));
+    }
+
+    function setUserVote(date, side) {
+      localStorage.setItem(getVoteKey(date), side);
+    }
+
+    function getDailySimulation(date) {
+      const dayKey = startOfDay(date).toISOString().slice(0, 10);
+      const random = mulberry32(hashString(dayKey));
+      let frostHp = MAX_HP;
+      let fireHp = MAX_HP;
+      let attacker = random() > 0.5 ? 'frost' : 'fire';
+      const battle = [];
+      const actions = {
+        frost: [
+          ['schickt einen Eissplitterhagel', 12, 24],
+          ['entfesselt Nebelfrost', 9, 18],
+          ['verdichtet die Stille zu einer Klinge', 10, 20],
+          ['zieht der Arena Wärme ab', 11, 19]
+        ],
+        fire: [
+          ['schleudert eine Glutfontäne', 12, 24],
+          ['öffnet einen Funkenriss', 9, 18],
+          ['peitscht eine Flammenzunge', 10, 20],
+          ['verdunkelt die Luft mit Hitze', 11, 19]
+        ]
+      };
+      const extras = [
+        'Die Luft knistert zwischen den Polen.',
+        'Ein kurzer Stillstand zieht durch die Arena.',
+        'Das Publikum hält für einen Atemzug inne.',
+        'Die Pixelränder flimmern wie ein Omen.'
+      ];
+      let timeOffset = 0;
+      let round = 1;
+
+      while (frostHp > 0 && fireHp > 0 && round <= 10) {
+        const actor = attacker;
+        const target = actor === 'frost' ? 'fire' : 'frost';
+        const move = actions[actor][Math.floor(random() * actions[actor].length)];
+        const roll = random();
+        let damage = 0;
+        let type = 'hit';
+        let text = '';
+
+        if (roll < 0.16) {
+          type = 'miss';
+          text = `${actor === 'frost' ? 'Frost' : 'Feuer'} ${move[0]}, doch der Angriff verfehlt sein Ziel.`;
+        } else if (roll > 0.89) {
+          type = 'critical';
+          damage = Math.min(target === 'frost' ? frostHp : fireHp, move[2] + 10 + Math.floor(random() * 8));
+          text = `Kritischer Treffer: ${actor === 'frost' ? 'Frost' : 'Feuer'} ${move[0]} und reißt die Balance kurz auf.`;
+        } else if (roll > 0.72) {
+          type = 'special';
+          damage = Math.min(target === 'frost' ? frostHp : fireHp, move[1] + Math.floor(random() * 8));
+          text = `Spezialmoment: ${move[0]} — ${extras[Math.floor(random() * extras.length)]}`;
+        } else {
+          damage = Math.min(target === 'frost' ? frostHp : fireHp, move[1] + Math.floor(random() * (move[2] - move[1] + 1)));
+          text = `${actor === 'frost' ? 'Frost' : 'Feuer'} ${move[0]} und trifft sicher.`;
+        }
+
+        if (target === 'frost') frostHp = Math.max(0, frostHp - damage);
+        else fireHp = Math.max(0, fireHp - damage);
+
+        timeOffset += 16000 + Math.floor(random() * 28000);
+        battle.push({
+          round,
+          actor,
+          target,
+          damage,
+          type,
+          text,
+          frostHp,
+          fireHp,
+          at: Math.min(timeOffset, BATTLE_DURATION_MS)
+        });
+
+        attacker = target;
+        round += 1;
+      }
+
+      const winner = frostHp > fireHp ? 'frost' : 'fire';
+      const loser = winner === 'frost' ? 'fire' : 'frost';
+      battle.push({
+        round,
+        actor: winner,
+        target: loser,
+        damage: 0,
+        type: 'finish',
+        text: `${winner === 'frost' ? 'Frost' : 'Feuer'} bleibt stehen, während ${loser === 'frost' ? 'Frost' : 'Feuer'} im Flimmern der Arena zusammenbricht.`,
+        frostHp,
+        fireHp,
+        at: BATTLE_DURATION_MS
+      });
+
+      return { dayKey, battle, winner, frostHp, fireHp };
+    }
+
+    function getCommunityVotes(date, userVote) {
+      const dayKey = startOfDay(date).toISOString().slice(0, 10);
+      const random = mulberry32(hashString(`votes-${dayKey}`));
+      let frost = 140 + Math.floor(random() * 240);
+      let fire = 140 + Math.floor(random() * 240);
+      if (userVote === 'frost') frost += 1;
+      if (userVote === 'fire') fire += 1;
+      return { frost, fire, total: frost + fire };
+    }
+
+    function computeState(now, battleStart) {
+      const start = battleStart.getTime();
+      const end = start + BATTLE_DURATION_MS;
+      const t = now.getTime();
+      if (t < start) return 'before';
+      if (t >= start && t < end) return 'live';
+      return 'after';
+    }
+
+    function updateHP(frostHp, fireHp) {
+      el.hpFrost.style.width = `${frostHp}%`;
+      el.hpFire.style.width = `${fireHp}%`;
+      el.hpFrostLabel.textContent = `Energie ${frostHp} / ${MAX_HP}`;
+      el.hpFireLabel.textContent = `Energie ${fireHp} / ${MAX_HP}`;
+      el.fighterFrost.classList.toggle('defeated', frostHp <= 0);
+      el.fighterFire.classList.toggle('defeated', fireHp <= 0);
+    }
+
+    function logEntries(entries) {
+      el.battleLog.innerHTML = '';
+      entries.forEach((entry) => {
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        const actor = entry.actor === 'frost' ? 'Frost' : 'Feuer';
+        div.innerHTML = `<strong>Runde ${entry.round}</strong><br>${entry.text} ${entry.damage ? `<br>Schaden: ${entry.damage}` : ''}`;
+        el.battleLog.appendChild(div);
+      });
+      el.battleLog.scrollTop = el.battleLog.scrollHeight;
+    }
+
+    function animateHit(target) {
+      const fighter = target === 'frost' ? el.fighterFrost : el.fighterFire;
+      fighter.classList.add('hit');
+      setTimeout(() => fighter.classList.remove('hit'), 380);
+    }
+
+    function setActive(actor) {
+      el.fighterFrost.classList.toggle('active', actor === 'frost');
+      el.fighterFire.classList.toggle('active', actor === 'fire');
+    }
+
+    function renderVotes(today, winner) {
+      const userVote = getUserVote(today);
+      el.voteFrost.className = userVote === 'frost' ? 'selected-ice' : '';
+      el.voteFire.className = userVote === 'fire' ? 'selected-fire' : '';
+
+      const votes = getCommunityVotes(today, userVote);
+      const frostPct = Math.round((votes.frost / votes.total) * 100);
+      const firePct = 100 - frostPct;
+      el.voteIceBar.style.width = `${frostPct}%`;
+      el.voteFireBar.style.width = `${firePct}%`;
+      el.voteMeta.textContent = `Frost ${frostPct}% · Feuer ${firePct}% · ${votes.total} Stimmen im heutigen Ritual`;
+
+      if (winner) {
+        const majority = votes.frost === votes.fire ? 'gleichstand' : (votes.frost > votes.fire ? 'frost' : 'fire');
+        if (majority === 'gleichstand') {
+          el.majorityMeta.textContent = `Die Community war gespalten. Gewonnen hat ${winner === 'frost' ? 'Frost' : 'Feuer'}.`;
+        } else {
+          el.majorityMeta.textContent = `Die Mehrheit setzte auf ${majority === 'frost' ? 'Frost' : 'Feuer'} — und lag ${majority === winner ? 'richtig' : 'daneben'}.`;
+        }
+      } else {
+        el.majorityMeta.textContent = 'Der Ausgang bleibt offen, bis der Kampf vollständig ausgespielt ist.';
+      }
+      return votes;
+    }
+
+    function renderArchive(today) {
+      const days = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const sim = getDailySimulation(d);
+        const votes = getCommunityVotes(d, getUserVote(d));
+        const majority = votes.frost === votes.fire ? 'gleichstand' : (votes.frost > votes.fire ? 'frost' : 'fire');
+        days.push({ date: d, winner: sim.winner, majority, frostVotes: votes.frost, fireVotes: votes.fire });
+      }
+
+      const frostWins = days.filter((d) => d.winner === 'frost').length;
+      const fireWins = days.length - frostWins;
+      const majorityHit = days.filter((d) => d.majority !== 'gleichstand' && d.majority === d.winner).length;
+
+      el.statsGrid.innerHTML = `
+        <div class="stat-box">Frostsiege<strong>${frostWins}</strong><span class="small-copy">in den letzten 14 Tagen</span></div>
+        <div class="stat-box">Feuersiege<strong>${fireWins}</strong><span class="small-copy">in den letzten 14 Tagen</span></div>
+        <div class="stat-box">Mehrheit lag richtig<strong>${majorityHit}</strong><span class="small-copy">von 14 Ritualen</span></div>
+      `;
+
+      el.timeline.innerHTML = '';
+      days.slice(-7).forEach((day) => {
+        const row = document.createElement('div');
+        row.className = 'timeline-row';
+        const spark = Array.from({ length: 12 }, (_, i) => {
+          const isWin = i < Math.round(((i % 2 === 0 ? frostWins : fireWins) / 14) * 12);
+          const color = day.winner === 'frost' ? 'var(--ice)' : 'var(--fire)';
+          return `<span style="background:${isWin ? color : 'rgba(255,255,255,0.08)'}"></span>`;
+        }).join('');
+        row.innerHTML = `
+          <div>${formatShort(day.date)}</div>
+          <div class="sparkline">${spark}</div>
+          <div class="winner-pill ${day.winner}">${day.winner === 'frost' ? 'Frost' : 'Feuer'}</div>
+        `;
+        el.timeline.appendChild(row);
+      });
+
+      el.archiveGrid.innerHTML = '';
+      days.reverse().forEach((day) => {
+        const card = document.createElement('article');
+        card.className = 'day-card';
+        const majLabel = day.majority === 'gleichstand' ? 'Community gespalten' : `Mehrheit: ${day.majority === 'frost' ? 'Frost' : 'Feuer'}`;
+        const correct = day.majority === 'gleichstand' ? 'ohne Tendenz' : (day.majority === day.winner ? 'Mehrheit lag richtig' : 'Mehrheit lag daneben');
+        card.innerHTML = `
+          <div class="top">
+            <strong>${formatDate(day.date)}</strong>
+            <span class="winner-pill ${day.winner}">${day.winner === 'frost' ? 'Frost' : 'Feuer'}</span>
+          </div>
+          <div class="small-copy">${majLabel} · ${correct}</div>
+          <div class="vote-bar">
+            <div class="vote-ice" style="width:${Math.round((day.frostVotes/(day.frostVotes+day.fireVotes))*100)}%"></div>
+            <div class="vote-fire" style="width:${Math.round((day.fireVotes/(day.frostVotes+day.fireVotes))*100)}%"></div>
+          </div>
+          <div class="archive-note">Ein weiterer Abend, an dem Stillstand und Verwandlung kurz sichtbar wurden.</div>
+        `;
+        el.archiveGrid.appendChild(card);
+      });
+    }
+
+    function renderBattle(today) {
+      const battleStart = getBattleStart(today);
+      const simulation = getDailySimulation(today);
+      const state = computeState(today, battleStart);
+      const elapsed = today.getTime() - battleStart.getTime();
+      const visibleEntries = state === 'before'
+        ? []
+        : state === 'after'
+          ? simulation.battle
+          : simulation.battle.filter((entry) => entry.at <= elapsed);
+
+      const lastEntry = visibleEntries[visibleEntries.length - 1];
+      const frostHp = lastEntry ? lastEntry.frostHp : MAX_HP;
+      const fireHp = lastEntry ? lastEntry.fireHp : MAX_HP;
+      updateHP(frostHp, fireHp);
+      logEntries(visibleEntries.length ? visibleEntries : [{ round: 0, actor: 'frost', damage: 0, text: 'Noch herrscht Ruhe. Das tägliche Duell beginnt erst um 18:00 Uhr.' }]);
+
+      if (state === 'before') {
+        setActive(null);
+        el.turnBanner.textContent = 'Die Figuren warten reglos. Erst um 18:00 Uhr setzt die erste Runde ein.';
+        el.daySummary.textContent = 'Heute wartet das Ritual noch auf seinen Ausgang.';
+      } else if (state === 'live') {
+        if (lastEntry) {
+          setActive(lastEntry.actor);
+          animateHit(lastEntry.target);
+          el.turnBanner.textContent = `Runde ${lastEntry.round}: ${lastEntry.text}`;
+        }
+        el.daySummary.textContent = 'Das heutige Duell läuft gerade live und entfaltet sich Runde für Runde.';
+      } else {
+        setActive(simulation.winner);
+        el.turnBanner.textContent = `${simulation.winner === 'frost' ? 'Frost' : 'Feuer'} hat das heutige Duell für sich entschieden.`;
+        el.daySummary.textContent = `Heute gewann ${simulation.winner === 'frost' ? 'Frost' : 'Feuer'}. Morgen um 18:00 Uhr beginnt das Ritual erneut.`;
+      }
+
+      return { state, winner: state === 'after' ? simulation.winner : null };
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const todayBattle = getBattleStart(now);
+      const nextBattle = now > todayBattle ? new Date(todayBattle.getTime() + 24 * 60 * 60 * 1000) : todayBattle;
+      const diff = nextBattle.getTime() - now.getTime();
+      const hours = String(Math.floor(diff / 3600000)).padStart(2, '0');
+      const minutes = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+      const seconds = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+      el.countdown.textContent = `${hours}:${minutes}:${seconds}`;
+
+      const state = computeState(now, todayBattle);
+      if (state === 'before') {
+        el.statusLine.textContent = 'Die Arena ist still. Das Duell beginnt täglich um 18:00 Uhr und dauert einige Minuten.';
+      } else if (state === 'live') {
+        el.statusLine.textContent = 'Das tägliche Duell läuft gerade live. Aktionen erscheinen mit zeitlicher Verzögerung.';
+      } else {
+        el.statusLine.textContent = 'Das heutige Ritual ist beendet. Der Countdown zählt bereits zum nächsten Abend.';
+      }
+
+      const battle = renderBattle(now);
+      renderVotes(now, battle.winner);
+      renderArchive(now);
+    }
+
+    el.voteFrost.addEventListener('click', () => {
+      setUserVote(new Date(), 'frost');
+      updateClock();
+    });
+
+    el.voteFire.addEventListener('click', () => {
+      setUserVote(new Date(), 'fire');
+      updateClock();
+    });
+
+    updateClock();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
 </html>
